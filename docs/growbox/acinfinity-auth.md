@@ -9,17 +9,35 @@ Read-only Zugriff fuer Klima- und Geraetewerte im GrowBox-Agent.
 
 ## Empfohlene Secrets
 - `ACINFINITY_EMAIL`
-- `ACINFINITY_PASSWORD` oder App-Token (falls verfuegbar)
+- `ACINFINITY_PASSWORD`
+- Optional direktes App-Token: `ACINFINITY_TOKEN`
 - Optional: `ACINFINITY_DEVICE_ID` (bei mehreren Controllern)
+- Fuer lokalen Secret-Manager (`pass`):
+  - `growbox/acinfinity/email`
+  - `growbox/acinfinity/password`
+  - optional `growbox/acinfinity/token`
 
 ## Ablauf (technisch)
-1. Secret-Dateien auf dem Raspberry anlegen (`chmod 600`).
-2. Connector liest Secrets aus Datei oder Env.
-3. Beim Polling:
-   - Session/Token holen oder refreshen
-   - Daten abrufen
-   - Bei 401/403 einmal Refresh versuchen
-   - Danach `auth_failed` melden
+1. Secrets lokal hinterlegen (`pass`, Datei oder Env).
+2. Connector loggt sich via `appUserLogin` ein (Email/Passwort) und holt `appId` als Token.
+3. Connector ruft `devInfoListAll` auf und extrahiert Temperatur/Feuchte/Luefterstufe.
+4. Bei API-Fehlern klaren Status liefern statt leere Erfolgsantwort.
+
+## Secret-Quellen (Reihenfolge)
+### Token (optional, wenn Login uebersprungen werden soll)
+1. `ACINFINITY_TOKEN`
+2. `ACINFINITY_TOKEN_FILE`
+3. `ACINFINITY_TOKEN_PASS_ENTRY` (Default: `growbox/acinfinity/token`)
+
+### Email
+1. `ACINFINITY_EMAIL`
+2. `ACINFINITY_EMAIL_FILE`
+3. `ACINFINITY_EMAIL_PASS_ENTRY` (Default: `growbox/acinfinity/email`)
+
+### Passwort
+1. `ACINFINITY_PASSWORD`
+2. `ACINFINITY_PASSWORD_FILE`
+3. `ACINFINITY_PASSWORD_PASS_ENTRY` (Default: `growbox/acinfinity/password`)
 
 ## Fehlercodes
 - `auth_failed`: Login/Token ungueltig
