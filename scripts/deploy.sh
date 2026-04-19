@@ -107,14 +107,14 @@ if [[ "$ENVIRONMENT" == "prod" && "$AUTO_YES" != "true" ]]; then
 fi
 
 unique_agents=()
-declare -A seen=()
+seen_agents=" "
 for id in "${AGENTS[@]}"; do
   if [[ -z "$id" ]]; then
     continue
   fi
-  if [[ -z "${seen[$id]:-}" ]]; then
-    seen[$id]=1
+  if [[ "$seen_agents" != *" $id "* ]]; then
     unique_agents+=("$id")
+    seen_agents+="$id "
   fi
 done
 

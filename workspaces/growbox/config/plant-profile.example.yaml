@@ -1,0 +1,10 @@
+plant:
+  name: "Demo Plant"
+  cultivar: "Unknown"
+  grow_style: "soil"
+  phase: "veg" # seedling | veg | bloom
+
+setup:
+  growbox_name: "main-box"
+  timezone: "Europe/Berlin"
+  notes: "example profile"

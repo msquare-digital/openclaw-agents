@@ -1,0 +1,27 @@
+rules:
+  - metric: air_temp_c
+    phase: veg
+    warn_min: 20
+    warn_max: 28
+    critical_min: 18
+    critical_max: 30
+    cooldown_minutes: 30
+    hysteresis: 0.5
+
+  - metric: humidity_pct
+    phase: veg
+    warn_min: 50
+    warn_max: 70
+    critical_min: 40
+    critical_max: 80
+    cooldown_minutes: 30
+    hysteresis: 2
+
+  - metric: soil_moisture_pct
+    phase: veg
+    warn_min: 25
+    warn_max: 55
+    critical_min: 20
+    critical_max: 65
+    cooldown_minutes: 45
+    hysteresis: 2

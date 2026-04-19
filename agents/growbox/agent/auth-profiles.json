@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "profiles": {
+    "openai:default": {
+      "type": "api_key",
+      "provider": "openai",
+      "key": "${OPENAI_API_KEY}"
+    },
+    "openrouter:default": {
+      "type": "api_key",
+      "provider": "openrouter",
+      "key": "${OPENROUTER_API_KEY}"
+    }
+  }
+}
