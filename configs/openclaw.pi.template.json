@@ -1,0 +1,138 @@
+{
+  "env": {
+    "OPENROUTER_API_KEY": "<SET_ON_PI_OR_REMOVE>"
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/home/msquare/.openclaw/workspace",
+      "models": {
+        "openai-codex/gpt-5.4": {},
+        "openai/gpt-5.4": {}
+      },
+      "model": {
+        "primary": "openai-codex/gpt-5.4",
+        "fallbacks": [
+          "openai/gpt-5.4"
+        ]
+      }
+    },
+    "list": [
+      { "id": "main" },
+      {
+        "id": "mail",
+        "name": "mail",
+        "workspace": "/home/msquare/.openclaw/workspace/mail",
+        "agentDir": "/home/msquare/.openclaw/agents/mail/agent",
+        "model": "openai-codex/gpt-5.4"
+      },
+      {
+        "id": "pricewatch",
+        "name": "pricewatch",
+        "workspace": "/home/msquare/.openclaw/workspace-pricewatch",
+        "agentDir": "/home/msquare/.openclaw/agents/pricewatch/agent",
+        "identity": {
+          "name": "pricewatch",
+          "emoji": "👀",
+          "theme": "ruhig, präzise, vorsichtig"
+        },
+        "model": "openai-codex/gpt-5.4"
+      }
+    ]
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "<SET_GATEWAY_TOKEN>"
+    },
+    "port": 18789,
+    "bind": "loopback",
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
+    }
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "provider": "exa"
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "openai:default": {
+        "provider": "openai",
+        "mode": "api_key"
+      },
+      "openai-codex:YOUR_EMAIL": {
+        "provider": "openai-codex",
+        "mode": "oauth",
+        "email": "YOUR_EMAIL"
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "groups": {
+        "*": { "requireMention": true }
+      },
+      "accounts": {
+        "default": {
+          "tokenFile": "/home/msquare/.openclaw/secrets/telegram-bot-token",
+          "dmPolicy": "pairing",
+          "groupPolicy": "disabled"
+        },
+        "pricewatch": {
+          "enabled": true,
+          "tokenFile": "/home/msquare/.openclaw/secrets/telegram-pricewatch-bot-token"
+        }
+      }
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "npm"
+    },
+    "entries": {
+      "openai-whisper-api": {
+        "apiKey": "<SET_OR_REMOVE>"
+      }
+    }
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": { "enabled": true },
+        "bootstrap-extra-files": { "enabled": true },
+        "command-logger": { "enabled": true },
+        "session-memory": { "enabled": true }
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "openai": { "enabled": true },
+      "openrouter": { "enabled": true }
+    }
+  },
+  "bindings": [
+    {
+      "type": "route",
+      "agentId": "pricewatch",
+      "match": {
+        "channel": "telegram",
+        "accountId": "pricewatch"
+      }
+    }
+  ]
+}

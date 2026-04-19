@@ -1,0 +1,46 @@
+# Imported raw snapshot (contains runtime data and secrets)
+/openclaw-import/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets and local overrides
+*.env
+*.local.json
+configs/openclaw.dev.local.json
+configs/openclaw.prod.local.json
+
+# Runtime/state artifacts
+**/.git/
+**/.openclaw/
+**/.clawhub/
+**/.clawhub-inspect/
+**/sessions/
+**/memory/
+**/state/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.jsonl
+*.tmp
+*.bak
+*.deleted.*
+
+# OpenClaw runtime folders if ever copied here
+/secrets/
+/logs/
+/cron/
+/tasks/
+/devices/
+/flows/
+/identity/
+/telegram/
+/qqbot/
+/canvas/
+/completions/
+/media/
+/credentials/
+/exec-approvals.json
+/update-check.json

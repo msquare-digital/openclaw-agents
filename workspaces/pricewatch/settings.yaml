@@ -1,0 +1,118 @@
+schedule:
+  defaultIntervalMinutes: 180
+  jobs:
+    discovery:
+      enabled: true
+      intervalMinutes: 720
+      maxNewUrlsPerProduct: 5
+    check:
+      enabled: true
+      intervalMinutes: 180
+      preferKnownUrls: true
+      fallbackToDiscoveryWhenNoKnownUrls: true
+
+notifications:
+  telegram:
+    enabled: true
+    mode: relevant-only
+
+matching:
+  priceIncludesShippingByDefault: true
+  treatMinorPriceChangeAsDuplicateUnder: 2
+  discoveryBeforeValidation: true
+  broadSearchThenStrictFilter: true
+  urlFirstMonitoring: true
+  requireUrlEvidenceBeforeRecurringChecks: true
+
+sourcing:
+  allowDynamicShops: true
+  destinationCity: Wuppertal
+  destinationCountry: DE
+  requireShippingToDestination: true
+  requireTrustCheck: true
+  minimumTrustSignals: 2
+  unknownShopMinimumTrustSignals: 3
+  suspiciousPriceGapRequiresReviewPercent: 25
+  requireTrustNoteForNonTopTierShops: true
+  preferStoredProductUrlsOverFreshSearch: true
+  storeDiscoveryResults: true
+  sourceBackoff:
+    enabled: true
+    blockedCooldownHours: 24
+    repeatedBlockedCooldownHours: 72
+    maxConsecutiveBlockedBeforeDeprioritize: 3
+  searchStrategy:
+    preferDirectProductPages: true
+    rememberSuccessfulProductUrls: true
+    useAliasesBeforeDeclaringNotFound: true
+    requireMultipleQueriesBeforeNotFound: true
+    queriesPerProductTarget: 3
+    blockedSourceIsNotNotFound: true
+    ambiguousSourceIsNotNotFound: true
+    googleFirstDiscovery: true
+    googleShoppingHintsEnabled: true
+    candidateLinkExtractionFromSearch: true
+    skillPriority:
+      discovery:
+        - ecommerce-price-watcher
+        - shopping-price-drop-coupon-scout
+      browserStealth:
+        - camoufox-stealth
+      coupons:
+        - shopping-price-drop-coupon-scout
+      marketContext:
+        - competitor-price-tracker
+  trustSignals:
+    - legal_imprint
+    - secure_checkout
+    - plausible_contact
+    - standard_payment_methods
+    - external_reputation_signal
+    - return_policy
+  marketplaceRules:
+    amazonMarketplace:
+      preferSoldByAmazon: true
+      requireStrongSellerQuality: true
+    ebay:
+      preferBusinessSellers: true
+      requireHighFeedback: true
+      requireClearReturnInfo: true
+
+sourceResultClassification:
+  requiredStatuses:
+    - found
+    - no_match
+    - blocked
+    - ambiguous
+    - found_but_untrusted
+    - shipping_unclear
+    - variant_mismatch
+  rules:
+    blockedDoesNotCountAsMissing: true
+    ambiguousDoesNotCountAsMissing: true
+    onlyNoMatchCountsAsNotFound: true
+
+alerts:
+  notifyOnTargetPrice: true
+  notifyOnVeryGoodPrice: true
+  suppressExactDuplicates: true
+  includeSourceDiagnosticsWhenNoAlert: true
+  outputFields:
+    - product
+    - price
+    - shop
+    - shipping
+    - trustLevel
+    - reason
+
+beautyDefaults:
+  requireExactShadeMatch: true
+  preferSealedProducts: true
+  rejectTestersByDefault: true
+  searchWithAndWithoutAccents: true
+  requireShadeVerificationAfterDiscovery: true
+
+safety:
+  neverBuy: true
+  neverPlaceOrders: true
+  neverCommitToExternalPurchaseActions: true

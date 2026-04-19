@@ -1,0 +1,211 @@
+products:
+  - id: lancome-all-over-concealer-095-006-beige-ocre
+    name: "Lancôme All Over Concealer 095 / 006 Beige Ocre"
+    enabled: true
+    aliases:
+      - "Lancome All Over Concealer 095"
+      - "Lancome Allover Concealer 095"
+      - "Lancôme Concealer 095 Beige Ocre"
+      - "Teint Idole Ultra Wear All Over Concealer 095"
+    searchableQueries:
+      - "Lancôme All Over Concealer 095 Beige Ocre"
+      - "Lancome concealer 095 006 beige ocre"
+      - "Teint Idole Ultra Wear All Over Concealer 095"
+    identifiers:
+      brand: "Lancôme"
+      shade: "095 / 006 Beige Ocre"
+      category: "concealer"
+
+    knownUrls: []
+    discoveryHints:
+      preferredRetailers:
+        - idealo
+        - flaconi
+        - douglas
+        - mueller
+      allowStoredUrlReuse: true
+
+    pricing:
+      currency: EUR
+      targetPrice: 20
+      veryGoodPrice: null
+      includeShipping: true
+
+    sources:
+      - platform: idealo
+      - platform: flaconi
+      - platform: amazon
+        sellerAllowlist:
+          - Amazon
+      - platform: ebay
+        sellerRatingMin: 98
+      - platform: douglas
+      - platform: mueller
+
+    conditions:
+      itemCondition:
+        - new
+      exactShadeRequired: true
+      region:
+        - DE
+        - EU
+      excludeTerms:
+        - tester
+        - sample
+        - mini
+        - travel size
+        - gebraucht
+        - used
+        - beschädigt
+        - defekt
+        - imitation
+        - dupe
+        - replica
+
+    notification:
+      cooldownHours: 24
+      minPriceDelta: 2
+
+    notes: >-
+      Exakte Farb- und Variantenübereinstimmung erforderlich. Suche zuerst breit
+      über Aliases und filtere erst danach streng auf die exakte Shade.
+
+  - id: dior-962-blush
+    name: "Dior Rosy Glow Blush 962"
+    enabled: true
+    aliases:
+      - "Dior 962 Blush"
+      - "Dior Rosy Glow 962"
+      - "Dior Backstage Rosy Glow 962"
+    searchableQueries:
+      - "Dior Rosy Glow Blush 962"
+      - "Dior Blush 962"
+      - "Dior Rosy Glow 962 shade"
+    identifiers:
+      brand: "Dior"
+      shade: "962"
+      category: "blush"
+
+    knownUrls: []
+    discoveryHints:
+      preferredRetailers:
+        - idealo
+        - flaconi
+        - douglas
+        - mueller
+      allowStoredUrlReuse: true
+
+    pricing:
+      currency: EUR
+      targetPrice: 34
+      veryGoodPrice: null
+      includeShipping: true
+
+    sources:
+      - platform: idealo
+      - platform: flaconi
+      - platform: amazon
+        sellerAllowlist:
+          - Amazon
+      - platform: ebay
+        sellerRatingMin: 98
+      - platform: douglas
+      - platform: mueller
+
+    conditions:
+      itemCondition:
+        - new
+      exactShadeRequired: true
+      region:
+        - DE
+        - EU
+      excludeTerms:
+        - tester
+        - sample
+        - mini
+        - travel size
+        - gebraucht
+        - used
+        - beschädigt
+        - defekt
+        - imitation
+        - dupe
+        - replica
+
+    notification:
+      cooldownHours: 24
+      minPriceDelta: 2
+
+    notes: >-
+      Exakte Farbnummer 962 erforderlich. Suche mit Produktfamilie plus Shade,
+      nicht nur mit der nackten Zahl.
+
+  - id: lancome-teint-miracle-02-lys-rose
+    name: "Lancôme Teint Miracle 02 Lys Rosé"
+    enabled: true
+    aliases:
+      - "Lancome Teint Miracle 02"
+      - "Lancôme Teint Miracle 02 Lys Rose"
+      - "Lancome Foundation 02 Lys Rosé"
+    searchableQueries:
+      - "Lancôme Teint Miracle 02 Lys Rosé"
+      - "Lancome Teint Miracle 02 Lys Rose"
+      - "Lancome foundation 02 lys rose"
+    identifiers:
+      brand: "Lancôme"
+      shade: "02 Lys Rosé"
+      category: "foundation"
+
+    knownUrls: []
+    discoveryHints:
+      preferredRetailers:
+        - idealo
+        - flaconi
+        - douglas
+        - mueller
+      allowStoredUrlReuse: true
+
+    pricing:
+      currency: EUR
+      targetPrice: 28
+      veryGoodPrice: null
+      includeShipping: true
+
+    sources:
+      - platform: idealo
+      - platform: flaconi
+      - platform: amazon
+        sellerAllowlist:
+          - Amazon
+      - platform: ebay
+        sellerRatingMin: 98
+      - platform: douglas
+      - platform: mueller
+
+    conditions:
+      itemCondition:
+        - new
+      exactShadeRequired: true
+      region:
+        - DE
+        - EU
+      excludeTerms:
+        - tester
+        - sample
+        - mini
+        - travel size
+        - gebraucht
+        - used
+        - beschädigt
+        - defekt
+        - imitation
+        - dupe
+        - replica
+
+    notification:
+      cooldownHours: 24
+      minPriceDelta: 2
+
+    notes: >-
+      Exakte Nuance 02 Lys Rosé erforderlich. Suche breit mit und ohne Akzent,
+      filtere danach auf die exakte Variante.
