@@ -14,10 +14,10 @@
 
 ## Milestone 2 - Monitoring und Telegram (US-04, US-05, US-06)
 
-- [ ] T-010 Regeldefinitionen als Konfigurationsdatei anlegen (warn/critical, hysterese, cooldown).
-- [ ] T-011 Evaluate-Modul bauen (`ok/warn/critical/sensor_missing`).
+- [x] T-010 Regeldefinitionen als Konfigurationsdatei anlegen (warn/critical, hysterese, cooldown).
+- [x] T-011 Evaluate-Modul bauen (`ok/warn/critical/sensor_missing`).
 - [ ] T-012 State-Speicher fuer letzte Werte und letzte Alerts implementieren.
-- [ ] T-013 Telegram Alert-Formatter mit einheitlichem Nachrichtenformat erstellen.
+- [x] T-013 Telegram Alert-Formatter mit einheitlichem Nachrichtenformat erstellen.
 - [ ] T-014 Push-Alerts bei `warn/critical` implementieren.
 - [ ] T-015 Pull-Kommandos `/status`, `/werte`, `/alarme`, `/hilfe` implementieren.
 - [ ] T-016 Anti-Spam-Logik (Cooldown + Deduplizierung) testen.

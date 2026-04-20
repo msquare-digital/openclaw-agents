@@ -9,6 +9,7 @@
 python3 workspaces/growbox/scripts/connectors/acinfinity_connector.py --mock
 python3 workspaces/growbox/scripts/connectors/ecowitt_connector.py --mock
 python3 workspaces/growbox/scripts/poll_growbox.py --mock
+python3 workspaces/growbox/scripts/poll_growbox.py --mock --evaluate --phase veg
 ```
 
 ## Live-Test mit Env-Datei (empfohlen)
@@ -81,3 +82,31 @@ python3 workspaces/growbox/scripts/connectors/ecowitt_connector.py
 - HTTP 429 -> `rate_limited`
 - Netzwerk-/Timeout-Fehler -> `api_unreachable`
 - Ungueltige Antwortstruktur -> `schema_changed`
+
+## Bewertungslogik (Evaluate)
+- `poll_growbox.py --evaluate` laedt Regeln aus `--thresholds-file` (Default: `config/thresholds.example.yaml`).
+- Event-Severity pro Regel: `ok`, `warn`, `critical`, `sensor_missing`.
+- Exit-Codes:
+  - `0` = Polling erfolgreich, keine kritischen Treffer
+  - `2` = mindestens ein Connector-Fehler
+  - `3` = Polling ok, aber mindestens ein `critical` Event
+
+## Telegram Alert-Template (Formatter)
+Telegram-Nachricht lokal aus Snapshot generieren:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/poll_growbox.py --evaluate --phase veg \
+  | python3 ~/.openclaw/workspace/growbox/scripts/format_telegram_alert.py --phase veg
+```
+
+Aus Datei:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/format_telegram_alert.py \
+  --snapshot-file /tmp/growbox_snapshot.json --phase veg
+```
+
+Der Formatter trennt:
+- Innen: Temp/Feuchte/VPD/CO2/Licht
+- Aussen: Temp/Feuchte/VPD
+- Boden: CH1..CH5
+- Pumpe: Status/Leistung
+- Events: Top-Ereignisse nach Schweregrad

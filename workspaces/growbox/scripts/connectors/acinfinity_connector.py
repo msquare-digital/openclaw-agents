@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from common import (
     ConnectorError,
@@ -20,6 +20,21 @@ from common import (
 )
 
 SOURCE = "acinfinity"
+EXPECTED_ROLES = ("heizung", "befeuchter", "abluft", "lampe", "sensoren")
+SENSOR_TYPE_META: Dict[int, Tuple[str, str]] = {
+    1: ("temperature_c", "C"),
+    2: ("humidity_pct", "pct"),
+    3: ("vpd_kpa", "kPa"),
+    5: ("temperature_c", "C"),
+    6: ("humidity_pct", "pct"),
+    7: ("vpd_kpa", "kPa"),
+    # Common in ACInfinity ecosystems; kept as best-effort labels.
+    8: ("co2_ppm", "ppm"),
+    9: ("light_lux", "lux"),
+    # Observed on BioStation X payloads.
+    11: ("co2_ppm", "ppm"),
+    12: ("light_pct", "pct"),
+}
 
 
 def _built_in_mock() -> Dict[str, Any]:
@@ -118,19 +133,90 @@ def _pick_device(devices: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     return devices[0]
 
 
-def _to_metrics(payload: Dict[str, Any], ts: str) -> List[Dict[str, Any]]:
-    metrics: List[Dict[str, Any]] = []
+def _parse_role_overrides() -> Dict[str, str]:
+    """Parse ACINFINITY_ROLE_MAP=id1:role,id2:role,..."""
+    raw = os.getenv("ACINFINITY_ROLE_MAP", "").strip()
+    mapping: Dict[str, str] = {}
+    if not raw:
+        return mapping
 
-    devices = _get_device_candidates(payload)
-    selected = _pick_device(devices)
-    if not selected:
-        raise ConnectorError("schema_changed", "no devices in ACInfinity response", retryable=False)
+    for pair in raw.split(","):
+        token = pair.strip()
+        if not token or ":" not in token:
+            continue
+        dev_id, role = token.split(":", 1)
+        dev_id = dev_id.strip()
+        role = role.strip().lower()
+        if dev_id and role:
+            mapping[dev_id] = role
+    return mapping
 
+
+def _device_id(device: Dict[str, Any]) -> str:
+    for key in ("devId", "deviceId", "id"):
+        ident = device.get(key)
+        if ident:
+            return str(ident)
+    if isinstance(device.get("deviceInfo"), dict):
+        for key in ("devId", "deviceId", "id"):
+            ident = device["deviceInfo"].get(key)
+            if ident:
+                return str(ident)
+    return "unknown"
+
+
+def _device_name(device: Dict[str, Any], fallback: str) -> str:
+    return str(
+        device.get("name")
+        or device.get("devName")
+        or device.get("deviceName")
+        or (device.get("deviceInfo", {}) if isinstance(device.get("deviceInfo"), dict) else {}).get("name")
+        or fallback
+    )
+
+
+def _classify_role(device: Dict[str, Any], device_id: str, role_overrides: Dict[str, str]) -> str:
+    if device_id in role_overrides:
+        return role_overrides[device_id]
+
+    parts: List[str] = []
+    for key, val in _iter_key_values(device):
+        key_l = str(key).lower()
+        if key_l in {
+            "name",
+            "devname",
+            "devicename",
+            "type",
+            "devtype",
+            "model",
+            "modename",
+            "nickname",
+            "productname",
+            "category",
+            "producttype",
+        }:
+            parts.append(str(val).lower())
+
+    text = " ".join(parts)
+    if any(k in text for k in ("heater", "heat", "heizung", "thermo", "warm")):
+        return "heizung"
+    if any(k in text for k in ("humid", "befeucht", "befeuchter", "nebler", "mist")):
+        return "befeuchter"
+    if any(k in text for k in ("fan", "abluft", "umluft", "inline", "exhaust", "vent")):
+        return "abluft"
+    if any(k in text for k in ("light", "lampe", "led", "grow light")):
+        return "lampe"
+    if any(k in text for k in ("sensor", "probe", "hygro", "thermo", "vpd")):
+        return "sensoren"
+    return "unbekannt"
+
+
+def _extract_device_metrics(device: Dict[str, Any], ts: str) -> Tuple[Dict[str, Any], str]:
     temp_val: Optional[float] = None
     humidity_val: Optional[float] = None
     speed_pct_val: Optional[float] = None
 
-    for key, val in _iter_key_values(selected):
+    for key, val in _iter_key_values(device):
         k = key.lower()
         if temp_val is None and k in {"temperature", "temperature_c", "temp"}:
             temp_val = _normalize_temperature(val)
@@ -139,19 +225,220 @@ def _to_metrics(payload: Dict[str, Any], ts: str) -> List[Dict[str, Any]]:
         if speed_pct_val is None and k in {"speak", "onspead", "onselfspead", "fanspeed", "fan_speed"}:
             speed_pct_val = _normalize_speed_to_pct(val)
 
-    if temp_val is not None:
-        metrics.append({"metric": "air_temp_c", "value": temp_val, "unit": "C", "timestamp": ts})
-    if humidity_val is not None:
-        metrics.append({"metric": "humidity_pct", "value": humidity_val, "unit": "pct", "timestamp": ts})
-    if speed_pct_val is not None:
-        metrics.append({"metric": "fan_speed_pct", "value": speed_pct_val, "unit": "pct", "timestamp": ts})
+    device_id = _device_id(device)
 
-    # Useful trace for debugging which device was chosen.
-    for key in ("devId", "deviceId", "id"):
-        ident = selected.get(key)
-        if ident:
-            metrics.append({"metric": "controller_device_id", "value": str(ident), "unit": "id", "timestamp": ts})
-            break
+    mapped: Dict[str, Any] = {}
+    if temp_val is not None:
+        mapped["air_temp_c"] = temp_val
+    if humidity_val is not None:
+        mapped["humidity_pct"] = humidity_val
+    if speed_pct_val is not None:
+        mapped["fan_speed_pct"] = speed_pct_val
+
+    return mapped, device_id
+
+
+def _infer_port_role(port_name: str) -> str:
+    text = (port_name or "").strip().lower()
+    if any(k in text for k in ("heiz", "heater", "heat", "warm")):
+        return "heizung"
+    if any(k in text for k in ("befeucht", "humid", "mist", "nebler")):
+        return "befeuchter"
+    if any(k in text for k in ("abluft", "umluft", "fan", "exhaust", "vent", "luefter", "lüfter")):
+        return "abluft"
+    if any(k in text for k in ("lampe", "light", "led")):
+        return "lampe"
+    return "unbekannt"
+
+
+def _state_from_int(value: Any) -> str:
+    num = safe_metric(value)
+    if num is None:
+        return "unknown"
+    return "on" if int(num) == 1 else "off"
+
+
+def _normalize_sensor_value(sensor_type: int, raw: Any) -> Optional[float]:
+    if sensor_type in {1, 5}:
+        return _normalize_temperature(raw)
+    if sensor_type in {2, 6}:
+        return _normalize_humidity(raw)
+
+    num = safe_metric(raw)
+    if num is None:
+        return None
+    if sensor_type in {3, 7} and abs(num) > 20:
+        return num / 100.0
+    if sensor_type in {12} and abs(num) > 100:
+        # 1000 -> 100.0% in app UI.
+        return num / 10.0
+    return num
+
+
+def _sensor_metric_meta(sensor_type: int) -> Tuple[str, str]:
+    return SENSOR_TYPE_META.get(sensor_type, (f"sensor_type_{sensor_type}", "raw"))
+
+
+def _extract_component_entries(
+    device: Dict[str, Any], ts: str, role_overrides: Dict[str, str]
+) -> Tuple[List[Dict[str, Any]], Set[str]]:
+    entries: List[Dict[str, Any]] = []
+    seen_roles: Set[str] = set()
+
+    controller_metrics, controller_id = _extract_device_metrics(device, ts)
+    controller_name = _device_name(device, "controller")
+
+    if controller_metrics:
+        controller_role = role_overrides.get(controller_id, "sensoren")
+        entries.append(
+            {
+                "device_id": controller_id,
+                "device_name": controller_name,
+                "source": SOURCE,
+                "role": controller_role,
+                "metrics": controller_metrics,
+                "timestamp": ts,
+            }
+        )
+        if controller_role in EXPECTED_ROLES:
+            seen_roles.add(controller_role)
+
+    info = device.get("deviceInfo", {})
+    if not isinstance(info, dict):
+        return entries, seen_roles
+
+    ports = info.get("ports")
+    if isinstance(ports, list):
+        for port in ports:
+            if not isinstance(port, dict):
+                continue
+            port_no = int(safe_metric(port.get("port")) or 0)
+            if port_no <= 0:
+                continue
+
+            port_name = str(port.get("portName") or f"Port {port_no}")
+            port_id = f"{controller_id}:port:{port_no}"
+            role = role_overrides.get(port_id, _infer_port_role(port_name))
+            metrics: Dict[str, Any] = {
+                "port_number": port_no,
+                "port_state": _state_from_int(port.get("loadState")),
+                "port_online": int(safe_metric(port.get("online")) or 0),
+            }
+            speed = _normalize_speed_to_pct(port.get("speak"))
+            if speed is not None:
+                metrics["fan_speed_pct"] = speed
+
+            if role == "unbekannt":
+                continue
+            seen_roles.add(role)
+            entries.append(
+                {
+                    "device_id": port_id,
+                    "device_name": port_name,
+                    "source": SOURCE,
+                    "role": role,
+                    "metrics": metrics,
+                    "timestamp": ts,
+                }
+            )
+
+    sensors = info.get("sensors")
+    if isinstance(sensors, list):
+        for sensor in sensors:
+            if not isinstance(sensor, dict):
+                continue
+            sensor_type = int(safe_metric(sensor.get("sensorType")) or 0)
+            sensor_key = str(sensor.get("sensorKey") or f"type{sensor_type}")
+            sensor_id = f"{controller_id}:sensor:{sensor_key}"
+            role = role_overrides.get(sensor_id, "sensoren")
+            value = _normalize_sensor_value(sensor_type, sensor.get("sensorData"))
+            metric_key, metric_unit = _sensor_metric_meta(sensor_type)
+            metrics = {
+                "sensor_type": sensor_type,
+                "access_port": int(safe_metric(sensor.get("accessPort")) or 0),
+                "sensor_metric": metric_key,
+                "sensor_unit": metric_unit,
+            }
+            if value is not None:
+                metrics[metric_key] = value
+            entries.append(
+                {
+                    "device_id": sensor_id,
+                    "device_name": f"Sensor {sensor_key} ({metric_key})",
+                    "source": SOURCE,
+                    "role": role,
+                    "metrics": metrics,
+                    "timestamp": ts,
+                }
+            )
+            if role in EXPECTED_ROLES:
+                seen_roles.add(role)
+
+    return entries, seen_roles
+
+
+def _sensor_metrics_by_port(device: Dict[str, Any]) -> Dict[int, Dict[str, float]]:
+    info = device.get("deviceInfo", {})
+    if not isinstance(info, dict):
+        return {}
+    sensors = info.get("sensors")
+    if not isinstance(sensors, list):
+        return {}
+
+    by_port: Dict[int, Dict[str, float]] = {}
+    for sensor in sensors:
+        if not isinstance(sensor, dict):
+            continue
+        sensor_type = int(safe_metric(sensor.get("sensorType")) or 0)
+        port = int(safe_metric(sensor.get("accessPort")) or 0)
+        if sensor_type <= 0 or port <= 0:
+            continue
+        value = _normalize_sensor_value(sensor_type, sensor.get("sensorData"))
+        if value is None:
+            continue
+        metric_key, _unit = _sensor_metric_meta(sensor_type)
+        by_port.setdefault(port, {})[metric_key] = value
+    return by_port
+
+
+def _select_canonical_metrics(device: Dict[str, Any], base: Dict[str, Any]) -> Dict[str, Any]:
+    metrics = dict(base)
+    by_port = _sensor_metrics_by_port(device)
+    if not by_port:
+        return metrics
+
+    try:
+        indoor_port = int(os.getenv("ACINFINITY_INDOOR_PORT", "1").strip() or "1")
+    except ValueError:
+        indoor_port = 1
+    try:
+        outdoor_port = int(os.getenv("ACINFINITY_OUTDOOR_PORT", "7").strip() or "7")
+    except ValueError:
+        outdoor_port = 7
+
+    indoor = by_port.get(indoor_port, {})
+    outdoor = by_port.get(outdoor_port, {})
+
+    if "temperature_c" in indoor:
+        metrics["air_temp_c"] = indoor["temperature_c"]
+    if "humidity_pct" in indoor:
+        metrics["humidity_pct"] = indoor["humidity_pct"]
+    if "vpd_kpa" in indoor:
+        metrics["vpd_kpa"] = indoor["vpd_kpa"]
+
+    if "temperature_c" in outdoor:
+        metrics["air_temp_outdoor_c"] = outdoor["temperature_c"]
+    if "humidity_pct" in outdoor:
+        metrics["humidity_outdoor_pct"] = outdoor["humidity_pct"]
+    if "vpd_kpa" in outdoor:
+        metrics["vpd_outdoor_kpa"] = outdoor["vpd_kpa"]
+
+    # CO2/light can be on a dedicated sensor port; expose first seen values.
+    for port_data in by_port.values():
+        if "co2_ppm" in port_data and "co2_ppm" not in metrics:
+            metrics["co2_ppm"] = port_data["co2_ppm"]
+        if "light_pct" in port_data and "light_pct" not in metrics:
+            metrics["light_pct"] = port_data["light_pct"]
 
     return metrics
 
@@ -253,9 +540,63 @@ def run() -> Dict[str, Any]:
         else:
             payload = _fetch_live(args.timeout)
 
-        metrics = _to_metrics(payload, ts)
-        if not metrics:
+        devices = _get_device_candidates(payload)
+        if not devices:
+            raise ConnectorError("schema_changed", "no devices in ACInfinity response", retryable=False)
+
+        selected = _pick_device(devices)
+        if not selected:
+            raise ConnectorError("schema_changed", "failed to select ACInfinity device", retryable=False)
+
+        selected_metrics, selected_device_id = _extract_device_metrics(selected, ts)
+        selected_metrics = _select_canonical_metrics(selected, selected_metrics)
+        if not selected_metrics:
             raise ConnectorError("schema_changed", "no expected metrics in ACInfinity payload", retryable=False)
+
+        unit_map = {
+            "air_temp_c": "C",
+            "humidity_pct": "pct",
+            "fan_speed_pct": "pct",
+            "vpd_kpa": "kPa",
+            "air_temp_outdoor_c": "C",
+            "humidity_outdoor_pct": "pct",
+            "vpd_outdoor_kpa": "kPa",
+            "co2_ppm": "ppm",
+            "light_pct": "pct",
+        }
+        metrics: List[Dict[str, Any]] = []
+        for metric_name, unit in unit_map.items():
+            if metric_name in selected_metrics:
+                metrics.append(
+                    {"metric": metric_name, "value": selected_metrics[metric_name], "unit": unit, "timestamp": ts}
+                )
+        metrics.append({"metric": "controller_device_id", "value": selected_device_id, "unit": "id", "timestamp": ts})
+
+        role_overrides = _parse_role_overrides()
+        device_entries: List[Dict[str, Any]] = []
+        seen_roles: Set[str] = set()
+        for idx, dev in enumerate(devices):
+            entries, roles = _extract_component_entries(dev, ts=ts, role_overrides=role_overrides)
+            if entries:
+                device_entries.extend(entries)
+                seen_roles.update(roles)
+                continue
+            mapped, device_id = _extract_device_metrics(dev, ts)
+            role = _classify_role(dev, device_id=device_id, role_overrides=role_overrides)
+            if role in EXPECTED_ROLES:
+                seen_roles.add(role)
+            if not mapped and role == "unbekannt":
+                continue
+            device_entries.append(
+                {
+                    "device_id": device_id,
+                    "device_name": _device_name(dev, f"controller-{idx+1}"),
+                    "source": SOURCE,
+                    "role": role,
+                    "metrics": mapped,
+                    "timestamp": ts,
+                }
+            )
 
         names = {m.get("metric") for m in metrics}
         status = "ok" if {"air_temp_c", "humidity_pct"}.issubset(names) else "degraded"
@@ -265,6 +606,9 @@ def run() -> Dict[str, Any]:
             "status": status,
             "fetched_at": ts,
             "metrics": metrics,
+            "devices": device_entries,
+            "expected_roles": list(EXPECTED_ROLES),
+            "missing_roles": [role for role in EXPECTED_ROLES if role not in seen_roles],
             "raw_ref": payload.get("_raw_ref", ""),
         }
         return result

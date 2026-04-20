@@ -25,3 +25,21 @@ rules:
     critical_max: 65
     cooldown_minutes: 45
     hysteresis: 2
+
+  - metric: co2_ppm
+    phase: veg
+    warn_min: 350
+    warn_max: 1400
+    critical_min: 250
+    critical_max: 2000
+    cooldown_minutes: 30
+    hysteresis: 25
+
+  - metric: light_pct
+    phase: veg
+    warn_min: 0
+    warn_max: 100
+    critical_min: 0
+    critical_max: 100
+    cooldown_minutes: 30
+    hysteresis: 1

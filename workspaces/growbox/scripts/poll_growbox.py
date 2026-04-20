@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parent
 CONNECTORS_DIR = ROOT / "connectors"
+DEFAULT_THRESHOLDS = ROOT.parent / "config" / "thresholds.example.yaml"
 
 
 def utc_now_iso() -> str:
@@ -60,6 +61,9 @@ def run_connector(name: str, timeout: float, mock: bool, mock_file: str) -> Dict
 
 def build_snapshot(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     metrics: Dict[str, Any] = {}
+    devices: List[Dict[str, Any]] = []
+    devices_by_source: Dict[str, List[Dict[str, Any]]] = {}
+    devices_by_role: Dict[str, List[Dict[str, Any]]] = {}
     missing: List[str] = []
     errors: List[Dict[str, Any]] = []
 
@@ -87,10 +91,20 @@ def build_snapshot(results: List[Dict[str, Any]]) -> Dict[str, Any]:
             if needed not in metric_names:
                 missing.append(needed)
 
+        for device in result.get("devices", []):
+            if isinstance(device, dict):
+                devices.append(device)
+                devices_by_source.setdefault(source, []).append(device)
+                role = str(device.get("role", "unbekannt"))
+                devices_by_role.setdefault(role, []).append(device)
+
     return {
         "snapshot_at": utc_now_iso(),
         "sources": [r.get("source", "unknown") for r in results],
         "metrics": metrics,
+        "devices": devices,
+        "devices_by_source": devices_by_source,
+        "devices_by_role": devices_by_role,
         "missing": sorted(set(missing)),
         "errors": errors,
         "raw": results,
@@ -101,6 +115,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Poll growbox data sources")
     parser.add_argument("--mock", action="store_true", help="Run connectors in mock mode")
     parser.add_argument("--timeout", type=float, default=10.0, help="Connector timeout")
+    parser.add_argument("--evaluate", action="store_true", help="Evaluate snapshot against thresholds")
+    parser.add_argument("--phase", default="veg", help="Grow phase used for evaluation")
+    parser.add_argument(
+        "--thresholds-file",
+        default=str(DEFAULT_THRESHOLDS),
+        help="Path to thresholds yaml file",
+    )
     parser.add_argument(
         "--source",
         choices=["all", "acinfinity", "ecowitt"],
@@ -116,10 +137,20 @@ def main() -> None:
     source_names = ["acinfinity", "ecowitt"] if args.source == "all" else [args.source]
     results = [run_connector(name=s, timeout=args.timeout, mock=args.mock, mock_file="") for s in source_names]
     snapshot = build_snapshot(results)
+    has_errors = any(r.get("status") == "error" for r in results)
+
+    if args.evaluate:
+        from evaluate_snapshot import evaluate_snapshot, load_rules
+
+        rules = load_rules(Path(args.thresholds_file))
+        snapshot["evaluation"] = evaluate_snapshot(snapshot=snapshot, rules=rules, phase=args.phase)
 
     print(json.dumps(snapshot, indent=2, ensure_ascii=False))
-    has_errors = any(r.get("status") == "error" for r in results)
-    sys.exit(2 if has_errors else 0)
+    if has_errors:
+        sys.exit(2)
+    if args.evaluate and snapshot.get("evaluation", {}).get("summary", {}).get("critical", 0) > 0:
+        sys.exit(3)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

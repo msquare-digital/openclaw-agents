@@ -54,8 +54,11 @@ def _epoch_to_iso(value: Any) -> str:
         return utc_now_iso()
 
 
-def _extract_soil(data: Dict[str, Any], selected_channel: int, ts: str) -> Tuple[List[Dict[str, Any]], bool]:
+def _extract_soil(
+    data: Dict[str, Any], selected_channel: int, ts: str
+) -> Tuple[List[Dict[str, Any]], bool, List[Dict[str, Any]]]:
     metrics: List[Dict[str, Any]] = []
+    devices: List[Dict[str, Any]] = []
     selected_found = False
 
     for key, node in data.items():
@@ -84,6 +87,16 @@ def _extract_soil(data: Dict[str, Any], selected_channel: int, ts: str) -> Tuple
                 "timestamp": reading_ts,
             }
         )
+        devices.append(
+            {
+                "device_id": key,
+                "device_name": f"Soil Sensor CH{channel}",
+                "source": SOURCE,
+                "role": "bodenfeuchte",
+                "metrics": {"soil_moisture_pct": soil_value},
+                "timestamp": reading_ts,
+            }
+        )
 
         if channel == selected_channel:
             selected_found = True
@@ -96,11 +109,14 @@ def _extract_soil(data: Dict[str, Any], selected_channel: int, ts: str) -> Tuple
                 }
             )
 
-    return metrics, selected_found
+    return metrics, selected_found, devices
 
 
-def _extract_pump_state(data: Dict[str, Any], plug_key: str, ts: str) -> List[Dict[str, Any]]:
+def _extract_pump_state(
+    data: Dict[str, Any], plug_key: str, ts: str
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     metrics: List[Dict[str, Any]] = []
+    devices: List[Dict[str, Any]] = []
 
     candidates: List[Tuple[str, Dict[str, Any]]] = []
     if plug_key and isinstance(data.get(plug_key), dict):
@@ -112,6 +128,8 @@ def _extract_pump_state(data: Dict[str, Any], plug_key: str, ts: str) -> List[Di
                 continue
             if isinstance(node.get("status"), dict):
                 candidates.append((key, node))
+
+    selected_key = plug_key if plug_key else (candidates[0][0] if candidates else "")
 
     for key, node in candidates:
         status_node = node.get("status", {})
@@ -125,42 +143,55 @@ def _extract_pump_state(data: Dict[str, Any], plug_key: str, ts: str) -> List[Di
         state = "on" if int(status_raw) == 1 else "off"
         status_ts = _epoch_to_iso(status_node.get("time")) if status_node.get("time") else ts
 
-        metrics.append(
-            {
-                "metric": "pump_state",
-                "value": state,
-                "unit": "state",
-                "timestamp": status_ts,
-            }
-        )
-        metrics.append(
-            {
-                "metric": "pump_device_key",
-                "value": key,
-                "unit": "id",
-                "timestamp": status_ts,
-            }
-        )
+        device_metrics: Dict[str, Any] = {"pump_state": state}
+        if key == selected_key:
+            metrics.append(
+                {
+                    "metric": "pump_state",
+                    "value": state,
+                    "unit": "state",
+                    "timestamp": status_ts,
+                }
+            )
+            metrics.append(
+                {
+                    "metric": "pump_device_key",
+                    "value": key,
+                    "unit": "id",
+                    "timestamp": status_ts,
+                }
+            )
 
         power_node = node.get("power", {})
         if isinstance(power_node, dict):
             power_value = safe_metric(power_node.get("value"))
             if power_value is not None:
                 power_ts = _epoch_to_iso(power_node.get("time")) if power_node.get("time") else status_ts
-                metrics.append(
-                    {
-                        "metric": "pump_power_w",
-                        "value": power_value,
-                        "unit": "W",
-                        "timestamp": power_ts,
-                    }
-                )
-        break
+                device_metrics["pump_power_w"] = power_value
+                if key == selected_key:
+                    metrics.append(
+                        {
+                            "metric": "pump_power_w",
+                            "value": power_value,
+                            "unit": "W",
+                            "timestamp": power_ts,
+                        }
+                    )
 
-    return metrics
+        devices.append(
+            {
+                "device_id": key,
+                "device_name": f"Pump Plug {key}",
+                "source": SOURCE,
+                "metrics": device_metrics,
+                "timestamp": status_ts,
+            }
+        )
+
+    return metrics, devices
 
 
-def _to_metrics(payload: Dict[str, Any], ts: str) -> List[Dict[str, Any]]:
+def _to_metrics(payload: Dict[str, Any], ts: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     data = payload.get("data", {})
     if not isinstance(data, dict):
         raise ConnectorError("schema_changed", "ecowitt response has no object data", retryable=False)
@@ -172,7 +203,7 @@ def _to_metrics(payload: Dict[str, Any], ts: str) -> List[Dict[str, Any]]:
 
     plug_key = os.getenv("ECOWITT_PLUG_DEVICE_KEY", "").strip()
 
-    soil_metrics, selected_found = _extract_soil(data, selected_channel, ts)
+    soil_metrics, selected_found, soil_devices = _extract_soil(data, selected_channel, ts)
     if soil_metrics and not selected_found:
         # Fallback to first soil channel as canonical soil_moisture_pct
         first_soil = next((m for m in soil_metrics if m["metric"].startswith("soil_moisture_ch")), None)
@@ -186,9 +217,32 @@ def _to_metrics(payload: Dict[str, Any], ts: str) -> List[Dict[str, Any]]:
                 }
             )
 
-    pump_metrics = _extract_pump_state(data, plug_key=plug_key, ts=ts)
+    pump_metrics, pump_devices = _extract_pump_state(data, plug_key=plug_key, ts=ts)
+    for dev in pump_devices:
+        dev["role"] = "pumpe"
 
-    return soil_metrics + pump_metrics
+    try:
+        expected_soil_channels = int(os.getenv("ECOWITT_EXPECT_SOIL_CHANNELS", "5").strip() or "5")
+    except ValueError:
+        expected_soil_channels = 5
+    existing_soil_ids = {str(dev.get("device_id", "")) for dev in soil_devices}
+    for channel in range(1, max(1, expected_soil_channels) + 1):
+        dev_id = f"soil_ch{channel}"
+        if dev_id in existing_soil_ids:
+            continue
+        soil_devices.append(
+            {
+                "device_id": dev_id,
+                "device_name": f"Soil Sensor CH{channel}",
+                "source": SOURCE,
+                "role": "bodenfeuchte",
+                "metrics": {},
+                "timestamp": ts,
+                "status": "missing",
+            }
+        )
+
+    return soil_metrics + pump_metrics, soil_devices + pump_devices
 
 
 def _fetch_live(timeout: float) -> Dict[str, Any]:
@@ -256,7 +310,7 @@ def run() -> Dict[str, Any]:
             payload = _fetch_live(args.timeout)
 
         payload_ts = _epoch_to_iso(payload.get("time")) if payload.get("time") else ts
-        metrics = _to_metrics(payload, payload_ts)
+        metrics, device_entries = _to_metrics(payload, payload_ts)
         if not metrics:
             raise ConnectorError("schema_changed", "no expected metrics in ecowitt payload", retryable=False)
 
@@ -268,6 +322,7 @@ def run() -> Dict[str, Any]:
             "status": status,
             "fetched_at": ts,
             "metrics": metrics,
+            "devices": device_entries,
             "raw_ref": payload.get("_raw_ref", ""),
         }
         return result
