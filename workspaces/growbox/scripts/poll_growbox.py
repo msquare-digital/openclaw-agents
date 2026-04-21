@@ -13,7 +13,30 @@ from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parent
 CONNECTORS_DIR = ROOT / "connectors"
-DEFAULT_THRESHOLDS = ROOT.parent / "config" / "thresholds.example.yaml"
+
+
+def _resolve_thresholds_file() -> Path:
+    import os
+
+    env_path = os.getenv("GROWBOX_THRESHOLDS_FILE", "").strip()
+    if env_path:
+        return Path(env_path)
+    primary = ROOT.parent / "config" / "thresholds.yaml"
+    if primary.exists():
+        return primary
+    return ROOT.parent / "config" / "thresholds.example.yaml"
+
+
+def _resolve_profile_file() -> Path:
+    import os
+
+    env_path = os.getenv("GROWBOX_PLANT_PROFILE_FILE", "").strip()
+    if env_path:
+        return Path(env_path)
+    primary = ROOT.parent / "config" / "plant-profile.yaml"
+    if primary.exists():
+        return primary
+    return ROOT.parent / "config" / "plant-profile.example.yaml"
 
 
 def utc_now_iso() -> str:
@@ -112,6 +135,8 @@ def build_snapshot(results: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def parse_args() -> argparse.Namespace:
+    default_thresholds = _resolve_thresholds_file()
+    default_profile = _resolve_profile_file()
     parser = argparse.ArgumentParser(description="Poll growbox data sources")
     parser.add_argument("--mock", action="store_true", help="Run connectors in mock mode")
     parser.add_argument("--timeout", type=float, default=10.0, help="Connector timeout")
@@ -119,8 +144,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--phase", default="veg", help="Grow phase used for evaluation")
     parser.add_argument(
         "--thresholds-file",
-        default=str(DEFAULT_THRESHOLDS),
+        default=str(default_thresholds),
         help="Path to thresholds yaml file",
+    )
+    parser.add_argument(
+        "--plant-profile-file",
+        default=str(default_profile),
+        help="Path to plant profile yaml file",
     )
     parser.add_argument(
         "--source",
@@ -141,9 +171,11 @@ def main() -> None:
 
     if args.evaluate:
         from evaluate_snapshot import evaluate_snapshot, load_rules
+        from profile_config import load_profile
 
         rules = load_rules(Path(args.thresholds_file))
-        snapshot["evaluation"] = evaluate_snapshot(snapshot=snapshot, rules=rules, phase=args.phase)
+        profile = load_profile(Path(args.plant_profile_file))
+        snapshot["evaluation"] = evaluate_snapshot(snapshot=snapshot, rules=rules, phase=args.phase, profile=profile)
 
     print(json.dumps(snapshot, indent=2, ensure_ascii=False))
     if has_errors:

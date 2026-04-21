@@ -4,7 +4,7 @@
 
 - [x] T-001 Verzeichnisstruktur `agents/growbox/agent` und `workspaces/growbox` anlegen.
 - [x] T-002 Basisdateien `AGENTS.md`, `SOUL.md`, `USER.md` fuer `growbox` erstellen.
-- [ ] T-003 `growbox` in Dev-Config (`~/.openclaw-dev/openclaw.json`) registrieren.
+- [x] T-003 `growbox` in Dev-Config (`~/.openclaw-dev/openclaw.json`) registrieren.
 - [x] T-004 Connector-Schnittstellen definieren (`collect/acinfinity`, `collect/ecowitt`).
 - [x] T-005 ACInfinity Auth-Flow als Secret-basiertes Setup dokumentieren.
 - [x] T-006 Ecowitt Auth-Flow als Secret-basiertes Setup dokumentieren.
@@ -16,19 +16,19 @@
 
 - [x] T-010 Regeldefinitionen als Konfigurationsdatei anlegen (warn/critical, hysterese, cooldown).
 - [x] T-011 Evaluate-Modul bauen (`ok/warn/critical/sensor_missing`).
-- [ ] T-012 State-Speicher fuer letzte Werte und letzte Alerts implementieren.
+- [x] T-012 State-Speicher fuer letzte Werte und letzte Alerts implementieren.
 - [x] T-013 Telegram Alert-Formatter mit einheitlichem Nachrichtenformat erstellen.
-- [ ] T-014 Push-Alerts bei `warn/critical` implementieren.
-- [ ] T-015 Pull-Kommandos `/status`, `/werte`, `/alarme`, `/hilfe` implementieren.
-- [ ] T-016 Anti-Spam-Logik (Cooldown + Deduplizierung) testen.
+- [x] T-014 Push-Alerts bei `warn/critical` implementieren.
+- [x] T-015 Pull-Kommandos `/status`, `/werte`, `/alarme`, `/hilfe` implementieren.
+- [x] T-016 Anti-Spam-Logik (Cooldown + Deduplizierung) testen.
 
 ## Milestone 3 - Grow-Kontext (US-07, US-08)
 
-- [ ] T-017 Pflanzenprofil-Schema definieren (Sorte, Phase, Anbauart).
-- [ ] T-018 Profil-Datei im Workspace laden und validieren.
-- [ ] T-019 Phasenabhaengige Grenzwerte im Regelwerk aktivieren.
-- [ ] T-020 Empfehlungstexte pro Regel und Phase hinterlegen.
-- [ ] T-021 Telegram-Ausgaben um Profil/Phase erweitern.
+- [x] T-017 Pflanzenprofil-Schema definieren (Sorte, Phase, Anbauart).
+- [x] T-018 Profil-Datei im Workspace laden und validieren.
+- [x] T-019 Phasenabhaengige Grenzwerte im Regelwerk aktivieren.
+- [x] T-020 Empfehlungstexte pro Regel und Phase hinterlegen.
+- [x] T-021 Telegram-Ausgaben um Profil/Phase + Tagesanalyse (24h) + Wochen/Tag-Kontext erweitern.
 
 ## Milestone 4 - Sichere Steuerung (US-09, US-10)
 

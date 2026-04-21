@@ -84,7 +84,7 @@ python3 workspaces/growbox/scripts/connectors/ecowitt_connector.py
 - Ungueltige Antwortstruktur -> `schema_changed`
 
 ## Bewertungslogik (Evaluate)
-- `poll_growbox.py --evaluate` laedt Regeln aus `--thresholds-file` (Default: `config/thresholds.example.yaml`).
+- `poll_growbox.py --evaluate` laedt Regeln aus `--thresholds-file` (Default: `config/thresholds.yaml`, Fallback: `config/thresholds.example.yaml`).
 - Event-Severity pro Regel: `ok`, `warn`, `critical`, `sensor_missing`.
 - Exit-Codes:
   - `0` = Polling erfolgreich, keine kritischen Treffer
@@ -110,3 +110,88 @@ Der Formatter trennt:
 - Boden: CH1..CH5
 - Pumpe: Status/Leistung
 - Events: Top-Ereignisse nach Schweregrad
+
+## Monitoring Cycle (State + Cooldown + Push)
+Ein Zyklus mit Deduplizierung/Cooldown:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/run_monitor_cycle.py \
+  --phase veg \
+  --notify-command "$GROWBOX_NOTIFY_COMMAND" \
+  --print-json
+```
+
+Dry-Run (kein Senden, nur Ausgabe):
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/run_monitor_cycle.py \
+  --phase veg \
+  --dry-run \
+  --print-json
+```
+
+State-Datei:
+- `~/.openclaw/workspace/growbox/state/monitor_state.json`
+- enthaelt letzte Alerts und Cooldown-Relevanz (`last_sent_at`)
+
+Historische Messdaten:
+- `~/.openclaw/workspace/growbox/state/metrics.sqlite3`
+- wird bei jedem `run_monitor_cycle.py` automatisch befuellt
+
+## Telegram Pull/Config Commands (Router)
+Status/summary/prediction/opinion/werte/alarme:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/growstatus"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/summary"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/prediction"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/opinion"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/werte"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/alarme"
+```
+
+Pflanzenprofil per Command aendern:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py \
+  --command "/profil set plant.phase bloom"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py \
+  --command "/profil set plant.cultivar Gorilla"
+```
+
+Profil validieren:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py --command "/profil validate"
+python3 ~/.openclaw/workspace/growbox/scripts/validate_plant_profile.py
+```
+
+Thresholds per Command aendern:
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py \
+  --command "/threshold set humidity_pct warn_min 48 veg"
+python3 ~/.openclaw/workspace/growbox/scripts/telegram_command_router.py \
+  --command "/threshold show humidity_pct"
+```
+
+## Daily Summary + Prediction
+Tagesreport lokal erzeugen (ohne Senden):
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/daily_status_report.py --dry-run --print-json
+```
+
+Tagesreport in Telegram senden (enthaelt `summary` und `prediction`):
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/daily_status_report.py \
+  --notify-command "$GROWBOX_NOTIFY_COMMAND" \
+  --print-json
+```
+
+Mit Experteneinschaetzung (LLM ueber OpenClaw-Agent `growbox`):
+```bash
+python3 ~/.openclaw/workspace/growbox/scripts/daily_status_report.py \
+  --with-opinion \
+  --notify-command "$GROWBOX_NOTIFY_COMMAND" \
+  --print-json
+```
+
+Optional andere Agent-ID fuer Opinion:
+```bash
+GROWBOX_OPINION_AGENT_ID=growbox \
+python3 ~/.openclaw/workspace/growbox/scripts/daily_status_report.py --with-opinion --dry-run
+```

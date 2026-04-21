@@ -151,6 +151,17 @@ for id in "${unique_agents[@]}"; do
   ssh "$PI_HOST" "mkdir -p $remote_agent_dir"
   rsync -az --delete "$local_agent_dir/" "$PI_HOST:$remote_agent_dir/"
 
+  # Fallback: if prompt core files are maintained in workspace,
+  # sync them into agentDir when absent in local agents/<id>/agent.
+  for prompt_file in AGENTS.md SOUL.md USER.md; do
+    if [[ -f "$local_agent_dir/$prompt_file" ]]; then
+      continue
+    fi
+    if [[ -f "$local_workspace_dir/$prompt_file" ]]; then
+      rsync -az "$local_workspace_dir/$prompt_file" "$PI_HOST:$remote_agent_dir/$prompt_file"
+    fi
+  done
+
   if [[ -d "$local_workspace_dir" ]]; then
     ssh "$PI_HOST" "mkdir -p $remote_workspace_dir"
     rsync -az --delete "$local_workspace_dir/" "$PI_HOST:$remote_workspace_dir/"

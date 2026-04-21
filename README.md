@@ -26,3 +26,7 @@ Git-repo fuer versionierbare OpenClaw-Agenten und Workspaces.
 ## Sicherheit
 - Keine echten API Keys, Tokens oder `auth-state` in Git committen.
 - Secrets nur auf dem Raspberry in `~/.openclaw/secrets` oder `~/.openclaw-dev/secrets` halten.
+- Fuer `pass`-basierte Secret-Syncs:
+  - `bash scripts/load-secrets-from-pass.sh --import-config ~/.openclaw/openclaw.json --sanitize-config ~/.openclaw/openclaw.json`
+  - `bash scripts/load-secrets-from-pass.sh --strict`
+  - danach vor Start: `source ~/.openclaw/secrets/runtime-secrets.env`

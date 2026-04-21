@@ -141,10 +141,14 @@ def format_telegram_message(snapshot: Dict[str, Any], phase: str, max_events: in
             metric = str(event.get("metric", "?"))
             current = event.get("current")
             reason = str(event.get("reason", "")).strip()
+            recommendation = str(event.get("recommendation", "")).strip()
             if current is None:
-                lines.append(f"  {ev_icon} {metric}: {reason}")
+                line = f"  {ev_icon} {metric}: {reason}"
             else:
-                lines.append(f"  {ev_icon} {metric}: {_fmt_value(metric, current)} ({reason})")
+                line = f"  {ev_icon} {metric}: {_fmt_value(metric, current)} ({reason})"
+            if recommendation:
+                line += f" -> {recommendation}"
+            lines.append(line)
 
     return "\n".join(lines).strip()
 
